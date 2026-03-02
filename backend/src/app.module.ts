@@ -1,3 +1,5 @@
+import * as dotenv from 'dotenv';
+dotenv.config();
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -13,11 +15,10 @@ import { PurchaseOrdersModule } from './purchase-orders/purchase-orders.module';
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'postgres',
-      password: '1234Cobo',   // ⚠️ si tu contraseña es distinta cámbiala
-      database: 'icv_platform',
+      url: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_URL
+        ? { rejectUnauthorized: false }
+        : false,
       entities: [Material, Stock, PurchaseOrder],
       synchronize: true,
     }),
