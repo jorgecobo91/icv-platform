@@ -1,5 +1,6 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Post, Body } from '@nestjs/common';
 import { MaterialsService } from './materials.service';
+import axios from 'axios';
 
 @Controller('materials')
 export class MaterialsController {
@@ -10,8 +11,25 @@ export class MaterialsController {
     return this.materialsService.getMaterialFull(codigo);
   }
 
-  @Get(':codigo/telegram')
-  getMaterialTelegram(@Param('codigo') codigo: string) {
-    return this.materialsService.getMaterialTelegram(codigo);
+  @Post('telegram/webhook')
+  async handleTelegram(@Body() body: any) {
+    const chatId = body?.message?.chat?.id;
+    const text = body?.message?.text;
+
+    if (!chatId || !text) {
+      return { ok: true };
+    }
+
+    const response = await this.materialsService.getMaterialTelegram(text);
+
+    await axios.post(
+      `https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`,
+      {
+        chat_id: chatId,
+        text: response.mensaje,
+      },
+    );
+
+    return { ok: true };
   }
 }
