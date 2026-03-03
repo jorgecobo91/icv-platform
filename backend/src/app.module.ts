@@ -4,7 +4,7 @@ dotenv.config();
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-
+import { AppController } from './app.controller';
 
 import { Material } from './materials/material.entity';
 import { Stock } from './stock/stock.entity';
@@ -29,6 +29,6 @@ import { PurchaseOrdersModule } from './purchase-orders/purchase-orders.module';
     StockModule,
     PurchaseOrdersModule,
   ],
-  
+  controllers: [AppController],
 })
 export class AppModule {}
