@@ -5,13 +5,8 @@ import { MaterialsService } from './materials.service';
 export class MaterialsController {
   constructor(private readonly materialsService: MaterialsService) {}
 
-  @Get()
-  findAll() {
-    return this.materialsService.findAll();
-  }
-
-  @Get('status/:codigo')
-  getMaterialStatus(@Param('codigo') codigo: string) {
-    return this.materialsService.getMaterialStatus(codigo);
+  @Get(':codigo/full')
+  getMaterialFull(@Param('codigo') codigo: string) {
+    return this.materialsService.getMaterialFull(codigo);
   }
 }

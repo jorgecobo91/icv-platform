@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+
 import { Material } from './material.entity';
 import { Stock } from '../stock/stock.entity';
 import { PurchaseOrder } from '../purchase-orders/purchase-order.entity';
@@ -15,91 +16,95 @@ export class MaterialsService {
     private stockRepository: Repository<Stock>,
 
     @InjectRepository(PurchaseOrder)
-    private purchaseOrderRepository: Repository<PurchaseOrder>,
+    private purchaseOrdersRepository: Repository<PurchaseOrder>,
   ) {}
 
-  async findAll() {
-    return this.materialRepository.find();
-  }
+  async getMaterialFull(codigo: string) {
 
-  async getMaterialStatus(codigo: string) {
-    const material = await this.materialRepository.findOne({
+    // 1️⃣ Buscar material exacto
+    let material = await this.materialRepository.findOne({
       where: { codigo },
     });
 
+    // 2️⃣ Buscar por similitud si no existe exacto
     if (!material) {
-      return { mensaje: `Material ${codigo} no encontrado.` };
+      material = await this.materialRepository
+        .createQueryBuilder('m')
+        .where('m.codigo ILIKE :codigo', { codigo: `%${codigo}%` })
+        .orWhere('m.descripcion ILIKE :codigo', { codigo: `%${codigo}%` })
+        .getOne();
     }
 
-    // STOCK
-    const stockRecords = await this.stockRepository.find({
+    if (!material) {
+      return { message: 'Material no encontrado' };
+    }
+
+    // 3️⃣ Obtener stock relacionado
+    const stock = await this.stockRepository.find({
       where: { material: { id: material.id } },
+      relations: ['material'],
     });
 
-    const totalStock = stockRecords.reduce(
-      (sum, s) => sum + (s.stockDisponible || 0),
+    const totalDisponible = stock.reduce(
+      (sum, s) => sum + Number(s.stockDisponible || 0),
       0,
     );
 
-    // OC
-    const ocRecords = await this.purchaseOrderRepository.find({
+    // 4️⃣ Obtener órdenes de compra relacionadas
+    const ordenes = await this.purchaseOrdersRepository.find({
       where: { material: { id: material.id } },
+      relations: ['material'],
     });
 
-    const ocAbiertas = ocRecords.filter((po) => (po.saldo || 0) > 0);
+    const hoy = new Date();
 
-    const totalPendiente = ocAbiertas.reduce(
-      (sum, po) => sum + (po.saldo || 0),
-      0,
-    );
+    const ordenesProcesadas = ordenes.map((oc) => {
 
-    let mensaje = `📦 MATERIAL: ${material.codigo}\n`;
-    mensaje += `📝 Descripción: ${material.descripcion}\n\n`;
+      let diasAtraso = 0;
+      let estado = 'SIN_FECHA';
 
-    // -------- STOCK INFO --------
-    if (totalStock > 0) {
-      mensaje += `📊 STOCK TOTAL: ${totalStock}\n`;
-      mensaje += `Detalle:\n`;
+      if (oc.fechaEntrega) {
+        const fechaEntrega = new Date(oc.fechaEntrega);
+        const diffTime = hoy.getTime() - fechaEntrega.getTime();
+        diasAtraso = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        estado = diasAtraso > 0 ? 'ATRASADO' : 'EN_FECHA';
+      }
 
-      stockRecords.forEach((s) => {
-        mensaje += `- Alm: ${s.almacen} | Ubicación: ${s.ubicacion} | Lote: ${s.lote} | Tipo: ${s.tipo} | Cant: ${s.stockDisponible}\n`;
-      });
-
-      mensaje += `\n`;
-    } else {
-      mensaje += `⚠ SIN STOCK DISPONIBLE\n\n`;
-    }
-
-    // -------- OC INFO --------
-    if (ocAbiertas.length > 0) {
-      mensaje += `📑 ÓRDENES DE COMPRA ABIERTAS: ${ocAbiertas.length}\n`;
-      mensaje += `Cantidad pendiente total: ${totalPendiente}\n\n`;
-
-      ocAbiertas.forEach((po) => {
-        mensaje += `- OC: ${po.pedido}\n`;
-        mensaje += `  Pos: ${po.posPed}\n`;
-        mensaje += `  Saldo: ${po.saldo}\n`;
-        mensaje += `  Fecha Entrega: ${po.fechaEntrega || 'Sin info'}\n`;
-        mensaje += `  Días atraso: ${po.dias ?? 'Sin info'}\n`;
-        mensaje += `  Proveedor: ${po.proveedor || 'Sin info'}\n`;
-        mensaje += `  OM: ${po.orden || 'Sin info'}\n`;
-        mensaje += `  Solicitante: ${po.solicitante || 'Sin info'}\n\n`;
-      });
-    } else {
-      mensaje += `📑 SIN ÓRDENES DE COMPRA ASOCIADAS\n`;
-    }
-
-    if (totalStock === 0 && ocAbiertas.length === 0) {
-      mensaje = `⚠ MATERIAL ${codigo} SIN STOCK Y SIN ÓRDENES DE COMPRA ASOCIADAS`;
-    }
+      return {
+        numeroOC: oc.pedido,
+        posicionPedido: oc.posPed,
+        solped: oc.solp,
+        cantidadPedida: oc.qty,
+        cantidadPendiente: oc.saldo,
+        fechaEntrega: oc.fechaEntrega,
+        proveedor: oc.proveedor,
+        ordenInterna: oc.orden,
+        solicitante: oc.solicitante,
+        tipoMaterial: oc.tipoMaterial,
+        fechaLiberacion: oc.fechaLiberacion,
+        diasAtraso: diasAtraso > 0 ? diasAtraso : 0,
+        estado,
+      };
+    });
 
     return {
-      codigo: material.codigo,
-      descripcion: material.descripcion,
-      stockTotal: totalStock,
-      ordenesAbiertas: ocAbiertas.length,
-      cantidadPendiente: totalPendiente,
-      mensaje,
+      material: {
+        codigo: material.codigo,
+        descripcion: material.descripcion,
+        centro: material.centro,
+      },
+      stock,
+      resumenStock: {
+        totalDisponible,
+        tieneStock: totalDisponible > 0,
+      },
+      ordenesCompra: ordenesProcesadas,
+      resumenOC: {
+        tieneOrdenes: ordenesProcesadas.length > 0,
+        hayAtraso: ordenesProcesadas.some(
+          (o) => o.estado === 'ATRASADO',
+        ),
+      },
     };
   }
 }
