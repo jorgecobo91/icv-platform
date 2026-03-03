@@ -9,4 +9,9 @@ export class MaterialsController {
   getMaterialFull(@Param('codigo') codigo: string) {
     return this.materialsService.getMaterialFull(codigo);
   }
+
+  @Get(':codigo/telegram')
+  getMaterialTelegram(@Param('codigo') codigo: string) {
+    return this.materialsService.getMaterialTelegram(codigo);
+  }
 }

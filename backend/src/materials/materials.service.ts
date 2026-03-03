@@ -21,12 +21,10 @@ export class MaterialsService {
 
   async getMaterialFull(codigo: string) {
 
-    // 1️⃣ Buscar material exacto
     let material = await this.materialRepository.findOne({
       where: { codigo },
     });
 
-    // 2️⃣ Buscar por similitud si no existe exacto
     if (!material) {
       material = await this.materialRepository
         .createQueryBuilder('m')
@@ -39,7 +37,6 @@ export class MaterialsService {
       return { message: 'Material no encontrado' };
     }
 
-    // 3️⃣ Obtener stock relacionado
     const stock = await this.stockRepository.find({
       where: { material: { id: material.id } },
       relations: ['material'],
@@ -50,7 +47,6 @@ export class MaterialsService {
       0,
     );
 
-    // 4️⃣ Obtener órdenes de compra relacionadas
     const ordenes = await this.purchaseOrdersRepository.find({
       where: { material: { id: material.id } },
       relations: ['material'],
@@ -106,5 +102,55 @@ export class MaterialsService {
         ),
       },
     };
+  }
+
+  async getMaterialTelegram(codigo: string): Promise<{ mensaje: string }> {
+
+    const data: any = await this.getMaterialFull(codigo);
+
+    if (data.message) {
+      return { mensaje: '❌ Material no encontrado' };
+    }
+
+    const material = data.material;
+    const stock = data.stock;
+    const ordenes = data.ordenesCompra;
+
+    let mensaje = `📦 STOCK\n\n`;
+    mensaje += `Material: ${material.codigo}\n`;
+    mensaje += `Texto: ${material.descripcion}\n`;
+    mensaje += `Centro: ${material.centro}\n\n`;
+
+    if (stock.length > 0) {
+      stock.forEach((s: any) => {
+        mensaje += `Alm: ${s.almacen} | Ubicación: ${s.ubicacion}\n`;
+        mensaje += `Disponible: ${s.stockDisponible}\n\n`;
+      });
+    } else {
+      mensaje += `Sin stock disponible\n\n`;
+    }
+
+    if (ordenes.length > 0) {
+      mensaje += `📄 ORDEN DE COMPRA ASOCIADA\n\n`;
+
+      ordenes.forEach((oc: any) => {
+        mensaje += `Orden de Compra: ${oc.numeroOC}\n`;
+        mensaje += `Cantidad Pedida: ${oc.cantidadPedida}\n`;
+        mensaje += `Cantidad Pendiente: ${oc.cantidadPendiente}\n`;
+        mensaje += `Fecha Entrega: ${oc.fechaEntrega ?? 'No informada'}\n`;
+        mensaje += `Proveedor: ${oc.proveedor ?? 'No informado'}\n`;
+
+        if (oc.estado === 'ATRASADO') {
+          mensaje += `⚠ PEDIDO ATRASADO ${oc.diasAtraso} días\n`;
+        }
+
+        mensaje += `\n`;
+      });
+
+    } else {
+      mensaje += `Sin órdenes de compra asociadas\n`;
+    }
+
+    return { mensaje };
   }
 }
