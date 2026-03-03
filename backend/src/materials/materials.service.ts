@@ -18,6 +18,10 @@ export class MaterialsService {
     private purchaseOrderRepository: Repository<PurchaseOrder>,
   ) {}
 
+  async findAll() {
+    return this.materialRepository.find();
+  }
+
   async getMaterialStatus(codigo: string) {
     const material = await this.materialRepository.findOne({
       where: { codigo },
@@ -85,7 +89,6 @@ export class MaterialsService {
       mensaje += `📑 SIN ÓRDENES DE COMPRA ASOCIADAS\n`;
     }
 
-    // -------- CASO SIN NADA --------
     if (totalStock === 0 && ocAbiertas.length === 0) {
       mensaje = `⚠ MATERIAL ${codigo} SIN STOCK Y SIN ÓRDENES DE COMPRA ASOCIADAS`;
     }
