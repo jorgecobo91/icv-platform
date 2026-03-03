@@ -79,4 +79,10 @@ export class StockService {
       totalRegistros: data.length,
     };
   }
+  async getAllStock() {
+    return this.stockRepository.find({
+      relations: ['material'],
+      take: 50,
+    });
+  }
 }
