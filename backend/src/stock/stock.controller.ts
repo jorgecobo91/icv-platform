@@ -1,14 +1,14 @@
 import {
-    Controller,
-    Post,
-    Get,
-    UseInterceptors,
-    UploadedFile,
-  } from '@nestjs/common';
-  import { FileInterceptor } from '@nestjs/platform-express';
-  import { StockService } from './stock.service';
-  
-  @Controller('stock')
+  Controller,
+  Post,
+  Get,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { StockService } from './stock.service';
+
+@Controller('stock')
 export class StockController {
 
   constructor(private readonly stockService: StockService) {}
@@ -23,4 +23,10 @@ export class StockController {
   async getAllStock() {
     return this.stockService.getAllStock();
   }
+
+  @Get('cruzados')
+  async getAlmacenesCruzados() {
+    return this.stockService.obtenerAlmacenesCruzados();
+  }
+
 }
