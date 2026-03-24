@@ -2,6 +2,9 @@ import {
   Controller,
   Post,
   Get,
+  Param,
+  Headers,
+  UnauthorizedException,
   UseInterceptors,
   UploadedFile,
 } from '@nestjs/common';
@@ -27,6 +30,17 @@ export class StockController {
   @Get('cruzados')
   async getAlmacenesCruzados() {
     return this.stockService.obtenerAlmacenesCruzados();
+  }
+
+  @Get('material/:codigo')
+  async getStockByMaterial(
+    @Param('codigo') codigo: string,
+    @Headers('x-api-key') apiKey: string,
+  ) {
+    if (apiKey !== process.env.API_KEY) {
+      throw new UnauthorizedException('API Key inválida');
+    }
+    return this.stockService.getStockByMaterial(codigo);
   }
 
 }

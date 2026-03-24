@@ -113,4 +113,15 @@ export class StockService {
       stockDisponible: s.stockDisponible,
     }));
   }
+
+  async getStockByMaterial(codigo: string) {
+    return this.stockRepository.find({
+      where: {
+        material: {
+          codigo: codigo,
+        },
+      },
+      relations: ['material', 'purchaseOrders'],
+    });
+  }
 }
